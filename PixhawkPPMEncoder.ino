@@ -3,10 +3,8 @@
 #define OUTPUT_PIN 8
 #define NUM_CHANNELS 6
 #define HIGH_PW 1500 //Setup over which threashold an input should be registered as high
-#define CLICK_DELAY 15 // Time that can pass between clicks
-#define RESET_DELAY 50
+#define CLICK_DELAY 400 // Time that can pass between clicks
 const int STATE_VALUES[] = {1100, 1300, 1400, 1550, 1700, 1900 }; //Define servo values for each state
-
 
 //TUNIG PARAMS
 #define CHANNEL_WIDTH 15 //Maximum amount of channels PPM supports, should not be changed
@@ -14,10 +12,12 @@ const int STATE_VALUES[] = {1100, 1300, 1400, 1550, 1700, 1900 }; //Define servo
 const int DEFAULT_SERVO_VALUES[] = {1500, 1500, 1100, 1500, 1100, 1100};  //set the default servo value
 #define PPM_FRAME_LENGTH 22500  //set the PPM frame length in microseconds (1ms = 1000µs)
 #define PPM_PULSE_LENGTH 300  //set the pulse length
+const int CHANNEL_MAP[] = {0,1,2,3,-1,4}; //Defines the position of the channels in the output. -1 maps the generated clicker channel to this position.
 
 unsigned long int last_peak;
 int pulse_buffer[CHANNEL_WIDTH], channel_buffer[CHANNEL_WIDTH], current_channel;
 int out_channels[NUM_CHANNELS];
+int state_pw = 1100;
 
 int high_time = 0;
 int low_time = 0;
@@ -122,35 +122,30 @@ void loop() {
         new_state = sizeof(STATE_VALUES)/sizeof(STATE_VALUES[0]);
       }
 
-      out_channels[4] = STATE_VALUES[new_state-1];
+      state_pw = STATE_VALUES[new_state-1];
       Serial.print("Updated to state: ");
       Serial.println(new_state);
       was_updated = false;
       new_state = 0;
     }
 
-    if(high_time > RESET_DELAY) {
-      low_time;
-      new_state = 1;
-      out_channels[4] = STATE_VALUES[0];
-      //Add reset routine
-    }
     
-    for(int i=0; i<NUM_CHANNELS - 1;i++) {
+    for(int i=0; i<NUM_CHANNELS;i++) {
       //Change Position of Channel 5 and 6
-      if(i == 4) {
-        out_channels[5] =  ch[4];
-        break;
+      if(CHANNEL_MAP[i] == -1) {
+        out_channels[i] =  state_pw;
+      } else {
+        out_channels[i] =  ch[CHANNEL_MAP[i]];
       }
-      out_channels[i] =  ch[i];
     }
 
+#if DEBUG
     for(int i=0; i<NUM_CHANNELS;i++) {
       Serial.print(out_channels[i]);
       Serial.print(", ");
     }
-    
     Serial.print("\n");
+#endif
     delay(1);
 }
 
