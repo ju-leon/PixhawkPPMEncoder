@@ -3,7 +3,7 @@
 #define OUTPUT_PIN 8
 #define NUM_CHANNELS 6
 #define HIGH_PW 1500 //Setup over which threashold an input should be registered as high
-#define CLICK_DELAY 400 // Time that can pass between clicks
+#define CLICK_DELAY 80 // Time that can pass between clicks
 const int STATE_VALUES[] = {1100, 1300, 1400, 1550, 1700, 1900 }; //Define servo values for each state
 
 //TUNIG PARAMS
@@ -108,12 +108,15 @@ void loop() {
         new_state++;
       }
       last_state = 1;
+
+      Serial.println("HIGH");
+      
     } else if(was_updated) {
       low_time++;
       last_state = 0;
     }
 
-    if((low_time >= CLICK_DELAY) && was_updated) {
+    if(was_updated && low_time >= CLICK_DELAY) {
       low_time = 0;
       high_time = 0;
 
@@ -125,6 +128,13 @@ void loop() {
       state_pw = STATE_VALUES[new_state-1];
       Serial.print("Updated to state: ");
       Serial.println(new_state);
+
+      for(int i=0; i<NUM_CHANNELS;i++) {
+        Serial.print(ch[i]);
+        Serial.print(", ");
+      }
+      Serial.print("\n");
+        
       was_updated = false;
       new_state = 0;
     }
@@ -146,7 +156,7 @@ void loop() {
     }
     Serial.print("\n");
 #endif
-    delay(1);
+    delay(5);
 }
 
 
