@@ -1,12 +1,12 @@
-
 //CONFIG
 #define INPUT_PIN 2  //Interrupt supporting PINs only
 #define OUTPUT_PIN 8
 #define NUM_CHANNELS 6
 #define HIGH_PW 1500 //Setup over which threashold an input should be registered as high
-#define CLICK_DELAY 15
+#define CLICK_DELAY 15 // Time that can pass between clicks
 #define RESET_DELAY 50
-const int STATE_VALUES[] = {1100, 1300, 1400, 1550, 1700, 1900 };
+const int STATE_VALUES[] = {1100, 1300, 1400, 1550, 1700, 1900 }; //Define servo values for each state
+
 
 //TUNIG PARAMS
 #define CHANNEL_WIDTH 15 //Maximum amount of channels PPM supports, should not be changed
@@ -14,7 +14,6 @@ const int STATE_VALUES[] = {1100, 1300, 1400, 1550, 1700, 1900 };
 const int DEFAULT_SERVO_VALUES[] = {1500, 1500, 1100, 1500, 1100, 1100};  //set the default servo value
 #define PPM_FRAME_LENGTH 22500  //set the PPM frame length in microseconds (1ms = 1000µs)
 #define PPM_PULSE_LENGTH 300  //set the pulse length
-#define NUM_STEPS 6
 
 unsigned long int last_peak;
 int pulse_buffer[CHANNEL_WIDTH], channel_buffer[CHANNEL_WIDTH], current_channel;
@@ -104,6 +103,7 @@ void loop() {
       was_updated = true;
       high_time++;
       low_time = 0;
+      // If first time pulled in this cycle, update next state number
       if(last_state == 0) {
         new_state++;
       }
@@ -117,8 +117,9 @@ void loop() {
       low_time = 0;
       high_time = 0;
 
-      if(new_state > NUM_STEPS) {
-        new_state = NUM_STEPS;
+      //Set to highest value if higher than available rates
+      if(new_state > sizeof(STATE_VALUES)/sizeof(STATE_VALUES[0])) {
+        new_state = sizeof(STATE_VALUES)/sizeof(STATE_VALUES[0]);
       }
 
       out_channels[4] = STATE_VALUES[new_state-1];
@@ -154,7 +155,7 @@ void loop() {
 }
 
 
-ISR(TIMER1_COMPA_vect){
+ISR(TIMER1_COMPA_vect) {
   static boolean state = true;
   
   TCNT1 = 0;
