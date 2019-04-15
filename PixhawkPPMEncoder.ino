@@ -3,17 +3,29 @@
 #define INPUT_PIN 2  //Interrupt supporting PINs only
 #define OUTPUT_PIN 8
 #define NUM_CHANNELS 6
+#define HIGH_PW 1500 //Setup over which threashold an input should be registered as high
+#define CLICK_DELAY 15
+#define RESET_DELAY 50
+const int STATE_VALUES[] = {1100, 1300, 1400, 1550, 1700, 1900 };
 
 //TUNIG PARAMS
 #define CHANNEL_WIDTH 15 //Maximum amount of channels PPM supports, should not be changed
 #define ON_STATE 1  //set polarity of the pulses: 1 is positive, 0 is negative
-#define DEFAULT_SERVO_VALUE 1500  //set the default servo value
+const int DEFAULT_SERVO_VALUES[] = {1500, 1500, 1100, 1500, 1100, 1100};  //set the default servo value
 #define PPM_FRAME_LENGTH 22500  //set the PPM frame length in microseconds (1ms = 1000µs)
 #define PPM_PULSE_LENGTH 300  //set the pulse length
+#define NUM_STEPS 6
 
 unsigned long int last_peak;
 int pulse_buffer[CHANNEL_WIDTH], channel_buffer[CHANNEL_WIDTH], current_channel;
 int out_channels[NUM_CHANNELS];
+
+int high_time = 0;
+int low_time = 0;
+int last_state = 0; //0 for low, 1 for high
+int new_state = 0;
+
+bool was_updated;
 
 // Setup PPM OUT Registers
 void ppm_out_registers() {
@@ -33,11 +45,11 @@ void setup() {
     // Setup interrupt
     pinMode(INPUT_PIN, INPUT_PULLUP);
     current_channel = 0;
-    attachInterrupt(digitalPinToInterrupt(INPUT_PIN), read_me, FALLING);
+    attachInterrupt(digitalPinToInterrupt(INPUT_PIN), interrupt_handler, FALLING);
 
     //Setup PPM Write
     for(int i = 0; i < NUM_CHANNELS; i++){
-        out_channels[i] = DEFAULT_SERVO_VALUE;
+        out_channels[i] = DEFAULT_SERVO_VALUES[i];
     }
     pinMode(OUTPUT_PIN, OUTPUT);
     digitalWrite(OUTPUT_PIN, !ON_STATE); 
@@ -45,7 +57,7 @@ void setup() {
     ppm_out_registers();
 }
 
-void read_me() {
+void interrupt_handler() {
 
     //Calculate peak time
     unsigned long int time_falling = micros();
@@ -87,13 +99,58 @@ int *read_rc() {
 void loop() {
     int *ch = read_rc();
 
-    for(int i=0; i<NUM_CHANNELS;i++) {
-      Serial.print(ch[i]);
-      Serial.print(", ");
+    // Synchrounsously checking if mode selector has been triggered
+    if(ch[5] > HIGH_PW) {
+      was_updated = true;
+      high_time++;
+      low_time = 0;
+      if(last_state == 0) {
+        new_state++;
+      }
+      last_state = 1;
+    } else if(was_updated) {
+      low_time++;
+      last_state = 0;
+    }
+
+    if((low_time >= CLICK_DELAY) && was_updated) {
+      low_time = 0;
+      high_time = 0;
+
+      if(new_state > NUM_STEPS) {
+        new_state = NUM_STEPS;
+      }
+
+      out_channels[4] = STATE_VALUES[new_state-1];
+      Serial.print("Updated to state: ");
+      Serial.println(new_state);
+      was_updated = false;
+      new_state = 0;
+    }
+
+    if(high_time > RESET_DELAY) {
+      low_time;
+      new_state = 1;
+      out_channels[4] = STATE_VALUES[0];
+      //Add reset routine
+    }
+    
+    for(int i=0; i<NUM_CHANNELS - 1;i++) {
+      //Change Position of Channel 5 and 6
+      if(i == 4) {
+        out_channels[5] =  ch[4];
+        break;
+      }
       out_channels[i] =  ch[i];
     }
+
+    for(int i=0; i<NUM_CHANNELS;i++) {
+      Serial.print(out_channels[i]);
+      Serial.print(", ");
+    }
+    
     Serial.print("\n");
-    delay(10);
+    delay(1);
 }
 
 
