@@ -4,8 +4,9 @@ This projects enables you to use multiple flightmodes on Pixhawk with just a sim
 
 ## Wiring
 
-RC_Reciver(PPM Channel) -> INPUT_PIN
-OUTPUT_PIN -> PIXHAWK/APM RC_IN
+RC Receiver          Arduino           PIXHAWK/APM
+
+PPM Channel -> INPUT_PIN | OUTPUT_PIN -> RC_IN
 
 ## How it works
 
