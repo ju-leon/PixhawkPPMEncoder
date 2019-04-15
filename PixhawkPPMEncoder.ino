@@ -1,45 +1,54 @@
 #define INPUT_PIN 2  //Interrupt supporting PINs only
+#define NUM_CHANNELS 6
 
+#define CHANNEL_WIDTH 15 //Maximum amount of channels PPM supports, should not be changed
 
-unsigned long int a, b, c;
-int x[15], ch1[15], i;
+unsigned long int time_falling, last_peak, pulse_time;
+int pulse_buffer[CHANNEL_WIDTH], channel_buffer[CHANNEL_WIDTH], current_channel;
 
 void setup() {
     Serial.begin(9600);
 
     // Setup interrupt
     pinMode(INPUT_PIN, INPUT_PULLUP);
+    current_channel = 0;
     attachInterrupt(digitalPinToInterrupt(INPUT_PIN), read_me, FALLING);
 }
 
 void read_me() {
-//this code reads value from RC reciever from PPM pin (Pin 2 or 3)
-//this code gives channel values from 0-1000 values 
-// -: ABHILASH :- //
-    a = micros(); //store time value a when pin value falling
-    c = a - b; //calculating time inbetween two peaks
-    b = a; // 
-    x[i] = c; //storing 15 value in array
-    i = i + 1;
-    if (i == 15) {
-        for (int j = 0; j < 15; j++) { ch1[j] = x[j]; }
-        i = 0;
+
+    //Calculate peak time
+    time_falling = micros();
+    pulse_time = time_falling - last_peak; 
+    last_peak = time_falling;
+
+    // Sture current poulse into array
+    pulse_buffer[current_channel++] = pulse_time;
+
+    //Once all channels have been read, write back to channel buffer
+    if (current_channel == CHANNEL_WIDTH) {
+        for (int j = 0; j < CHANNEL_WIDTH; j++) { 
+            channel_buffer[j] = pulse_buffer[j]; 
+        }
+        current_channel = 0;
     }
-}//copy store all values from temporary array another array after 15 reading 
+}
 
 int *read_rc() {
-    int i, j, k = 0;
-    
-    for (k = 14; k > -1; k--) {
-        if (ch1[k] > 10000) { 
-          j = k; 
+    int offset = 0;
+
+    //Calculate channel offset
+    for (int k = CHANNEL_WIDTH - 1; k >= 0; k--) {
+        if (channel_buffer[k] > 10000) { 
+          offset = k; 
         }
     }
 
-    static int ch[7];
-    
-    for (i = 0; i <= 6; i++) {
-        ch[i] = (ch1[i + 1 + j]);
+    static int ch[NUM_CHANNELS];
+
+    // Write the channels into array
+    for (int i = 0; i < NUM_CHANNELS; i++) {
+        ch[i] = (channel_buffer[i + 1 + offset]);
     }
 
     return ch;
@@ -48,7 +57,7 @@ int *read_rc() {
 void loop() {
     int *ch = read_rc();
 
-    for(int i=0; i<7;i++) {
+    for(int i=0; i<NUM_CHANNELS;i++) {
       Serial.print(ch[i]);
       Serial.print(", ");
     }
